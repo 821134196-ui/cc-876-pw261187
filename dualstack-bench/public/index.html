@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>双栈连接实验台 · Happy Eyeballs</title>
+<link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+<div class="viz-root" id="app">
+  <header class="page-head">
+    <div>
+      <h1>双栈连接实验台</h1>
+      <p class="subtitle">IPv4 / IPv6 竞速（RFC 8305 Happy Eyeballs）· 可控可达性与延迟 · 胜出即取消另一路</p>
+    </div>
+    <div class="mode-switch" role="group" aria-label="链路模式">
+      <button type="button" class="seg" data-mode="sim" aria-pressed="true">模拟链路</button>
+      <button type="button" class="seg" data-mode="real" aria-pressed="false">真实本地 TCP</button>
+    </div>
+  </header>
+
+  <section class="card" aria-labelledby="cfg-title">
+    <h2 id="cfg-title">链路与竞速参数</h2>
+    <div class="cfg-grid">
+      <div class="link-cfg" data-family="ipv6">
+        <div class="link-head">
+          <span class="swatch swatch-ipv6"></span>
+          <h3>IPv6 <code id="ep-ipv6">::1</code></h3>
+        </div>
+        <label>状态
+          <select class="mode-select" data-family="ipv6">
+            <option value="accept">accept · 可连接</option>
+            <option value="refuse">refuse · 拒绝</option>
+            <option value="blackhole">blackhole · 黑洞</option>
+          </select>
+        </label>
+        <label class="lat-row">延迟 <span class="lat-val" data-family="ipv6">600</span> ms
+          <input type="range" class="lat-input" data-family="ipv6" min="0" max="3000" step="20" value="600" />
+        </label>
+      </div>
+
+      <div class="link-cfg" data-family="ipv4">
+        <div class="link-head">
+          <span class="swatch swatch-ipv4"></span>
+          <h3>IPv4 <code id="ep-ipv4">127.0.0.1</code></h3>
+        </div>
+        <label>状态
+          <select class="mode-select" data-family="ipv4">
+            <option value="accept">accept · 可连接</option>
+            <option value="refuse">refuse · 拒绝</option>
+            <option value="blackhole">blackhole · 黑洞</option>
+          </select>
+        </label>
+        <label class="lat-row">延迟 <span class="lat-val" data-family="ipv4">120</span> ms
+          <input type="range" class="lat-input" data-family="ipv4" min="0" max="3000" step="20" value="120" />
+        </label>
+      </div>
+
+      <div class="race-cfg">
+        <h3>竞速参数</h3>
+        <label>首选地址族
+          <select id="order-select">
+            <option value="ipv6,ipv4">IPv6 优先（默认）</option>
+            <option value="ipv4,ipv6">IPv4 优先</option>
+          </select>
+        </label>
+        <label>替代连接等待 <span id="delay-val">250</span> ms
+          <input type="range" id="delay-input" min="0" max="2000" step="10" value="250" />
+        </label>
+        <label>单次连接超时 <span id="timeout-val">4000</span> ms
+          <input type="range" id="timeout-input" min="500" max="8000" step="100" value="4000" />
+        </label>
+        <p class="cap-note" id="cap-note" hidden></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card actions" aria-labelledby="act-title">
+    <h2 id="act-title">发起连接</h2>
+    <div class="btn-row">
+      <button type="button" id="btn-start" class="primary">发起连接</button>
+      <button type="button" id="btn-cancel" class="danger" disabled>用户取消</button>
+      <button type="button" id="btn-burst" class="secondary">连续发起 3 次（自动取代）</button>
+      <span class="active-badge" id="active-badge" hidden>运行中…</span>
+    </div>
+    <p class="hint">「连续发起」在短时间内启动多次连接，后到的连接会取代前一次；被取代的连接以 <code>superseded</code> 结束。</p>
+  </section>
+
+  <section class="card" aria-labelledby="tl-title">
+    <div class="card-head">
+      <h2 id="tl-title">连接尝试时间线</h2>
+      <div class="legend" role="list" aria-label="图例">
+        <span role="listitem"><span class="swatch swatch-ipv6"></span>IPv6</span>
+        <span role="listitem"><span class="swatch swatch-ipv4"></span>IPv4</span>
+      </div>
+    </div>
+    <div id="timeline" class="timeline">
+      <p class="empty" id="tl-empty">尚未发起连接。点击「发起连接」开始。</p>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="hist-title">
+    <div class="card-head">
+      <h2 id="hist-title">运行记录与完成原因</h2>
+      <button type="button" id="btn-clear" class="ghost">清空视图</button>
+    </div>
+    <div class="table-wrap">
+      <table id="history-table">
+        <thead>
+          <tr><th>运行</th><th>状态</th><th>完成原因</th><th>胜出</th><th>耗时</th><th>尝试</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="evt-title">
+    <h2 id="evt-title">事件流（表格视图）</h2>
+    <div class="table-wrap">
+      <table id="event-table">
+        <thead>
+          <tr><th>运行</th><th>t (ms)</th><th>事件</th><th>地址族 / 细节</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+<script src="./app.js"></script>
+</body>
+</html>

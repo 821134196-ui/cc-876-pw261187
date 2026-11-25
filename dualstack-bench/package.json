@@ -1,0 +1,15 @@
+{
+  "name": "dualstack-bench",
+  "version": "1.0.0",
+  "private": true,
+  "description": "IPv4/IPv6 Happy Eyeballs 可控连接实验台：可达性/延迟控制、竞速、胜出取消、用户取消与连续取代",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/engine.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}
